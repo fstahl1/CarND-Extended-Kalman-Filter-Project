@@ -37,7 +37,7 @@ void KalmanFilter::Update(const VectorXd &z) {
   VectorXd y = z - (H_ * x_);
   MatrixXd S = (H_ * P_ * H_.transpose()) + R_;
   MatrixXd K = P_ * H_.transpose() * S.inverse();
-    //new estimate
+  //new estimate / state update
   x_ = x_ + (K * y);
   long x_size = x_.size();
   MatrixXd I = MatrixXd::Identity(x_size, x_size);
@@ -45,29 +45,48 @@ void KalmanFilter::Update(const VectorXd &z) {
 }
 
 
-VectorXd Cartesian2Polar(const VectorXd x_) {
+VectorXd Cartesian2Polar(const VectorXd &x_) {
 
-  float px = x_(0);
-  float py = x_(1);
-  float vx = x_(2);
-  float vy = x_(3);
+  float px = x_[0];
+  float py = x_[1];
+  float vx = x_[2];
+  float vy = x_[3];
 
-  float rho, phi, rho_hat;
+  float rho, phi, rho_dot;
   
   rho = sqrt(px*px + py*py);
-  phi = atan(py/px);
-  rho_hat = (px*vx + py*vy) / (rho);
+  // avoid dividing by zero
+  if (rho < 0.00001) {
+    rho = 0.00001;
+  }
+  phi = atan2(py, px);
+  rho_dot = (px*vx + py*vy) / rho;
 
-  VectorXd x_pred_(3);
-  x_pred_ << rho, phi, rho_hat;
+  VectorXd x_pred(3);
+  x_pred << rho, phi, rho_dot;
 
+  return x_pred;
 }
 
 void KalmanFilter::UpdateEKF(const VectorXd &z) {
   /**
    * TODO: update the state by using Extended Kalman Filter equations
    */
-  VectorXd y = z - (H_ * Cartesian2Polar(x_));
 
+  VectorXd y = z - Cartesian2Polar(x_);
+
+  // correct error angle phi in case it is greater or less than pi
+  if (y(1) > M_PI) {
+    y(1) -= 2 * M_PI;
+  } else if (y(1) < M_PI) {
+    y(1) += 2 * M_PI;
+  }
+
+  MatrixXd S = (H_ * P_ * H_.transpose()) + R_;
+  MatrixXd K = P_ * H_.transpose() * S.inverse();
+  //new estimate / state update
+  x_ = x_ + (K * y);
+  MatrixXd I = MatrixXd::Identity(x_.size(), x_.size());
+  P_ = (I - K * H_) * P_;
 }
 
