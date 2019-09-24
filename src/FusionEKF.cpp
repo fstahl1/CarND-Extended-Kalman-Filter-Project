@@ -42,17 +42,11 @@ FusionEKF::FusionEKF() {
   // initialize state transition matrix
   ekf_.F_ = MatrixXd(4, 4);
   ekf_.F_ << 1, 0, 1, 0,
-            0, 1, 0, 1, 
-            0, 0, 1, 0,
-            0, 0, 0, 1;
+             0, 1, 0, 1, 
+             0, 0, 1, 0,
+             0, 0, 0, 1;
 
-  // initialize state covariance matrix
-  ekf_.P_ = MatrixXd(4, 4);
-  ekf_.P_ << 1, 0, 0, 0,
-             0, 1, 0, 0,
-             0, 0, 1000, 0,
-             0, 0, 0, 1000;
-
+  // set measurement noises
   noise_ax = 9;
   noise_ay = 9;
 }
@@ -72,6 +66,7 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
      * TODO: Create the covariance matrix.
      * You'll need to convert radar from polar to cartesian coordinates.
      */
+    
     previous_timestamp_ = measurement_pack.timestamp_;
 
     // first measurement
@@ -84,17 +79,34 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
       //         and initialize state.
       float rho = measurement_pack.raw_measurements_[0];
       float phi = measurement_pack.raw_measurements_[1];
-      // float rho_dot = measurement_pack.raw_measurements_[2];
+      float rho_dot = measurement_pack.raw_measurements_[2];
 
+      // convert polar to cartesian coordinates
       ekf_.x_[0] = rho * cos(phi);
       ekf_.x_[1] = rho * sin(phi);
-      // ekf_.x_[2] = rho_dot * cos(phi);
-      // ekf_.x_[3] = rho_dot * sin(phi);
+      ekf_.x_[2] = rho_dot * cos(phi);
+      ekf_.x_[3] = rho_dot * sin(phi);
+    
+      /* initialize state covariance matrix: position is certain since based on measurement value, 
+      velocity is not that certain, since radar only measures the velocity projected on the line between vehicle and object */
+      ekf_.P_ = MatrixXd(4, 4);
+      ekf_.P_ << 1, 0, 0, 0,
+                 0, 1, 0, 0,
+                 0, 0, 10, 0,
+                 0, 0, 0, 10;
     }
     else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
       // TODO: Initialize state.
       ekf_.x_[0] = measurement_pack.raw_measurements_[0];
       ekf_.x_[1] = measurement_pack.raw_measurements_[1];
+
+      /* initialize state covariance matrix: position is certain since based on measurement value, 
+      velocity is not certain at all, since not directly measured by laser */
+      ekf_.P_ = MatrixXd(4, 4);
+      ekf_.P_ << 1, 0, 0, 0,
+                 0, 1, 0, 0,
+                 0, 0, 10000, 0,
+                 0, 0, 0, 10000;
     }
 
     // done initializing, no need to predict or update
@@ -114,7 +126,7 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
    */
 
   // current timestep in microseconds
-  float dt = measurement_pack.timestamp_ - previous_timestamp_ ;
+  dt = measurement_pack.timestamp_ - previous_timestamp_ ;
   // convert to seconds
   dt = dt / 1000000.0;
 
@@ -125,9 +137,9 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   ekf_.F_(0, 2) = dt;
   ekf_.F_(1, 3) = dt;
 
-  float dt2 = dt*dt;
-  float dt3 = dt2*dt;
-  float dt4 = dt3*dt;
+  dt2 = dt*dt;
+  dt3 = dt2*dt;
+  dt4 = dt3*dt;
   ekf_.Q_ = MatrixXd(4,4);
   // update process covariance matrix
   ekf_.Q_ << dt4/4*noise_ax, 0             , dt3/2*noise_ax, 0             ,
