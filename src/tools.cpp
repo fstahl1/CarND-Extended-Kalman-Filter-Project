@@ -25,9 +25,9 @@ VectorXd Tools::CalculateRMSE(const vector<VectorXd> &estimations,
   }
 
   VectorXd rmse_mean = rmse_sum / estimations.size();
-  VectorXd RMSE = rmse_mean.array().sqrt();
+  VectorXd rmse = rmse_mean.array().sqrt();
 
-  return RMSE;
+  return rmse;
 
 }
 
@@ -43,16 +43,15 @@ MatrixXd Tools::CalculateJacobian(const VectorXd& x_state) {
 
   float c1 = px*px+py*py;
   // avoid division by zero
-  if (c1 < 0.00001) {
-    c1 = 0.00001;
+  if (fabs(c1) < 0.0001) {
+    c1 = 0.0001;
   }
   float c2 = sqrt(c1);
   float c3 = (c1*c2);
 
-  Eigen::MatrixXd jacobian_matrix;
-  jacobian_matrix = MatrixXd(3, 4);
-  jacobian_matrix << (px/c2), (py/c2), 0, 0,
-         -(py/c1), (px/c1), 0, 0,
-          py*(vx*py - vy*px)/c3, px*(px*vy - py*vx)/c3, px/c2, py/c2;
+  MatrixXd jacobian_matrix(3, 4);
+  jacobian_matrix << (px/c2)              , (py/c2)              ,     0,     0,
+                     -(py/c1)             , (px/c1)              ,     0,     0,
+                     py*(vx*py - vy*px)/c3, px*(px*vy - py*vx)/c3, px/c2, py/c2;
   return jacobian_matrix;
 }

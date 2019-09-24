@@ -59,6 +59,7 @@ VectorXd Cartesian2Polar(const VectorXd &x_) {
   if (rho < 0.00001) {
     rho = 0.00001;
   }
+
   phi = atan2(py, px);
   rho_dot = (px*vx + py*vy) / rho;
 
@@ -76,9 +77,17 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
   VectorXd y = z - Cartesian2Polar(x_);
 
   // correct error angle phi in case it is greater or less than pi
-  if (y(1) > M_PI) {
+  // if (y(1) > M_PI) {
+  //   y(1) -= 2 * M_PI;
+  // } else if (y(1) < M_PI) {
+  //   y(1) += 2 * M_PI;
+  // }
+
+  while(y(1) > M_PI){
     y(1) -= 2 * M_PI;
-  } else if (y(1) < M_PI) {
+  }
+
+  while(y(1) < -M_PI){
     y(1) += 2 * M_PI;
   }
 
